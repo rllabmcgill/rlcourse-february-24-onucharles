@@ -162,4 +162,4 @@ def run_experiments():
     plt.show()
 
 
-print(generateEpisode())
+run_experiments()
