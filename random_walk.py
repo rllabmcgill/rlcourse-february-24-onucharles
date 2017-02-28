@@ -4,32 +4,30 @@ from math import sqrt
 import matplotlib.pyplot as plt
 import pickle
 
-N_STATES = 7
+N_STATES = 5
 
 WALK_LEFT = 0
 WALK_RIGHT = 1
 
 
 states = np.arange(N_STATES)
-actual_state_values = states / (N_STATES - 1)
+actual_state_values = (states + 1) / (N_STATES + 1)
 
 def walk(state, action):
     nextState = -1
     isEnd = False
     curReward = 0
 
-    if (state == 0 or state == N_STATES - 1):
-        return nextState, True, curReward
-
     if WALK_LEFT == action:
         nextState = state - 1
-        if nextState == 0:
+        if nextState == -1:
             isEnd = True
     elif WALK_RIGHT == action:
         nextState = state + 1
-        if nextState == N_STATES - 1:
+        if nextState == N_STATES:
             isEnd = True
             curReward = 1
+            nextState = -1
 
     return nextState, isEnd, curReward
 
@@ -54,7 +52,7 @@ def mcPredictEveryVisit(alpha, n_episodes, n_iteration):
     rmse = np.zeros((n_episodes, n_iteration))
 
     for k in range(n_iteration):
-        state_values = np.zeros((N_STATES)) + 0.5 * np.array([0,1,1,1,1,1,0], dtype=bool)
+        state_values = np.zeros((N_STATES)) + 0.5
         for j in range(n_episodes):
             episode = generateEpisode()
 
@@ -63,7 +61,7 @@ def mcPredictEveryVisit(alpha, n_episodes, n_iteration):
             for (state, reward, nextState) in episode:
                 state_values[state] += alpha * (lastReward - state_values[state])
 
-            rmse[j, k] = sqrt(mean_squared_error(state_values[1:-1], actual_state_values[1:-1]))
+            rmse[j, k] = sqrt(mean_squared_error(state_values, actual_state_values))
 
     return np.mean(rmse, axis=1) #, np.mean(state_values, axis=1)
 
@@ -72,7 +70,7 @@ def mcPredictFirstVisit(alpha, n_episodes, n_iteration):
     rmse = np.zeros((n_episodes, n_iteration))
 
     for k in range(n_iteration):
-        state_values = np.zeros((N_STATES)) + 0.5 * np.array([0,1,1,1,1,1,0], dtype=bool)
+        state_values = np.zeros((N_STATES)) + 0.5
         for j in range(n_episodes):
             episode = generateEpisode()
 
@@ -86,7 +84,7 @@ def mcPredictFirstVisit(alpha, n_episodes, n_iteration):
 
             #state_values[:,k] = state_values[:,k] + alpha * (cum_returns - state_values[:,k])
             state_values = state_values + alpha * (cum_returns - state_values)
-            rmse[j, k] = sqrt(mean_squared_error(state_values[1:-1], actual_state_values[1:-1]))
+            rmse[j, k] = sqrt(mean_squared_error(state_values, actual_state_values))
 
     return np.mean(rmse, axis=1) #, np.mean(state_values, axis=1)
 
@@ -97,21 +95,21 @@ def tdPredict(alpha, n_episodes, n_iteration):
     rmse = np.zeros((n_episodes, n_iteration))
 
     for k in range(n_iteration):
-        state_values = np.zeros(N_STATES) + 0.5 * np.array([0,1,1,1,1,1,0], dtype=bool)
+        state_values = np.zeros(N_STATES) + 0.5
         for i in range(n_episodes):
-            #cur_state_values = np.zeros((N_STATES))
             episode = generateEpisode()
             for j in range(len(episode)):
                 (state, reward, nextState) = episode[j]
+                if nextState == -1:
+                    state_values[state] = state_values[state] + alpha * (reward - state_values[state])
+                    break
                 state_values[state] = state_values[state] + alpha * (reward + 1 * state_values[nextState] - state_values[state])
-            #state_values = cur_state_values
 
-            rmse[i,k] = sqrt(mean_squared_error(state_values[1:-1], actual_state_values[1:-1]))   #[1:-1] exclude terminal - first and last - states
-        #print(state_values)
+            rmse[i, k] = sqrt(mean_squared_error(state_values, actual_state_values))
     return np.mean(rmse, axis=1)
 
 def run_experiments():
-    n_episodes = 500
+    n_episodes = 100
     n_iterations = 100
 
     #1. Everyvisit vs first visit monte carlo
@@ -160,6 +158,5 @@ def run_experiments():
     plt.xlabel('episodes')
     plt.legend(loc='upper right')
     plt.show()
-
 
 run_experiments()
